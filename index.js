@@ -10,41 +10,33 @@ const { checkForAuthenticationCookie } = require("./middlewares/auth");
 const Blog = require("./models/blog");
 
 const app = express();
+const PORT = process.env.PORT || 8000;
 
-/* -------------------- MongoDB Safe Connection -------------------- */
+/* -------- MongoDB Safe Connection (Vercel + Local) -------- */
 const connectDB = async () => {
   if (mongoose.connection.readyState >= 1) return;
 
   try {
-    await mongoose.connect(process.env.MONGO_URL);
-    console.log("MongoDB Connected");
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log("MongoDB connected (index)");
   } catch (err) {
-    console.error("MongoDB connection error:", err);
+    console.error("MongoDB error:", err);
     throw err;
   }
 };
 
-/* -------------------- View Engine -------------------- */
+/* ------------------ View Engine ------------------ */
 app.set("view engine", "ejs");
 app.set("views", path.resolve("./views"));
 
-/* -------------------- Middlewares -------------------- */
+/* ------------------ Middlewares ------------------ */
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cookieParser());
-
-// safe auth middleware (won’t crash on Vercel)
-app.use((req, res, next) => {
-  try {
-    checkForAuthenticationCookie("token")(req, res, next);
-  } catch {
-    next();
-  }
-});
-
+app.use(checkForAuthenticationCookie("token"));
 app.use(express.static(path.resolve("./public")));
 
-/* -------------------- Routes -------------------- */
+/* ------------------ Routes ------------------ */
 app.get("/", async (req, res) => {
   try {
     await connectDB();
@@ -63,12 +55,7 @@ app.get("/", async (req, res) => {
 app.use("/user", userRoute);
 app.use("/blog", blogRoute);
 
-/* -------------------- Local vs Vercel -------------------- */
-if (process.env.NODE_ENV !== "production") {
-  const PORT = process.env.PORT || 8000;
-  app.listen(PORT, () =>
-    console.log(`Server started locally on port ${PORT}`)
-  );
-}
-
-module.exports = app; // REQUIRED for Vercel
+/* ------------------ Server ------------------ */
+app.listen(PORT, () => {
+  console.log(`Server started at PORT:${PORT}`);
+});
