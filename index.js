@@ -11,6 +11,9 @@ const { checkForAuthenticationCookie } = require("./middlewares/auth");
 
 const app = express();
 
+/* ✅ CONNECT DB ONCE */
+connectDB();
+
 // VIEW ENGINE
 app.set("view engine", "ejs");
 app.set("views", path.resolve("./views"));
@@ -20,14 +23,13 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(checkForAuthenticationCookie("token"));
-app.use(express.static(path.join(__dirname, "public")));
 
+/* ✅ STATIC FILES (IMAGES WORK HERE) */
+app.use(express.static(path.join(__dirname, "public")));
 
 // HOME ROUTE
 app.get("/", async (req, res) => {
   try {
-    await connectDB();
-
     const allblogs = await Blog.find({});
     res.render("home", {
       user: req.user,
@@ -43,5 +45,5 @@ app.get("/", async (req, res) => {
 app.use("/user", userRoute);
 app.use("/blog", blogRoute);
 
-// ❗ IMPORTANT FOR VERCEL
+// ❗ REQUIRED FOR VERCEL
 module.exports = app;
