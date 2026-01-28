@@ -1,61 +1,66 @@
 const { Router } = require("express");
 const multer = require("multer");
+const path = require("path");
 const Blog = require("../models/blog");
 const Comment = require("../models/comment");
-const connectDB = require("../config/db");
 
 const router = Router();
 
-// memory storage (Vercel safe)
-const upload = multer({ storage: multer.memoryStorage() });
+/* ✅ MULTER CONFIG */
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.resolve("./public/uploads"));
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
 
-// ADD BLOG PAGE
+const upload = multer({ storage });
+
+/* ADD BLOG PAGE */
 router.get("/add-new", (req, res) => {
   res.render("addBlog", { user: req.user });
 });
 
-// BLOG DETAILS
+/* SINGLE BLOG PAGE */
 router.get("/:id", async (req, res) => {
-  try {
-    await connectDB();
+  const blog = await Blog.findById(req.params.id).populate("createdBy");
+  const comments = await Comment.find({ blogId: req.params.id })
+    .populate("createdBy");
 
-    const blog = await Blog.findById(req.params.id).populate("createdBy");
-    const comments = await Comment.find({ blogId: req.params.id }).populate("createdBy");
-
-    res.render("blog", {
-      user: req.user,
-      blog,
-      comments,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Internal Server Error");
-  }
+  res.render("blog", {
+    user: req.user,
+    blog,
+    comments,
+  });
 });
 
-// CREATE BLOG
+/* ADD COMMENT */
+router.post("/comment/:blogId", async (req, res) => {
+  await Comment.create({
+    content: req.body.content,
+    blogId: req.params.blogId,
+    createdBy: req.user._id,
+  });
+
+  res.redirect(`/blog/${req.params.blogId}`);
+});
+
+/* ✅ CREATE BLOG (IMAGE FIX HERE) */
 router.post("/", upload.single("coverImage"), async (req, res) => {
-  try {
-    await connectDB();
+  const { title, body } = req.body;
 
-    const { title, body } = req.body;
+  await Blog.create({
+    title,
+    body,
+    createdBy: req.user._id,
+    coverImageURL: req.file
+      ? `/uploads/${req.file.filename}`
+      : "/images/default.png",
+  });
 
-    if (!title || !body) {
-      return res.status(400).send("Missing fields");
-    }
-
-    await Blog.create({
-      title,
-      body,
-      createdBy: req.user?._id,
-      coverImageURL: "/default.png",
-    });
-
-    res.redirect("/");
-  } catch (err) {
-    console.error("Create blog error:", err);
-    res.status(500).send("Internal Server Error");
-  }
+  res.redirect("/");
 });
 
 module.exports = router;

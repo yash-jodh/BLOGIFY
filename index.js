@@ -20,7 +20,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(checkForAuthenticationCookie("token"));
-app.use(express.static(path.resolve("./public")));
+app.use(express.static(path.join(__dirname, "public")));
+
 
 // HOME ROUTE
 app.get("/", async (req, res) => {
