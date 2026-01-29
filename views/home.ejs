@@ -16,7 +16,7 @@
             <% blogs.forEach(blog=> { %>
                 <div class="col">
                     <div class="card">
-                        <img src="<%= blog.coverImageURL %>" class="card-img-top">
+                        <img src="<%= blog.coverImageURL || '/Images/default.png' %>" class="card-img-top">
                         <div class="card-body">
                             <h5 class="card-title">
                                 <%= blog.title %>

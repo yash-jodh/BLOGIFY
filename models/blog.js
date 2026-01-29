@@ -1,23 +1,19 @@
-const { Schema, model } = require("mongoose");
+const { Schema, model, models } = require("mongoose");
 
-const blogSchema = new Schema({
-  title: {
-      type: String,
-      required: true,
-    },
-    body: {
-      type: String,
-    },
+const blogSchema = new Schema(
+  {
+    title: String,
+    body: String,
     coverImageURL: {
       type: String,
-      required: false,
+      default: "/Images/default.png",
     },
     createdBy: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-    }
-},
- {timestamps: true});
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+  },
+  { timestamps: true }
+);
 
- const Blog = model("blog", blogSchema);
- module.exports = Blog;
+module.exports = models.Blog || model("Blog", blogSchema);

@@ -1,29 +1,37 @@
 const { Router } = require("express");
 const multer = require("multer");
-const path = require("path");
+const cloudinary = require("cloudinary").v2;
 const Blog = require("../models/blog");
 const Comment = require("../models/comment");
 
 const router = Router();
 
-/* ✅ MULTER CONFIG */
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.resolve("./public/uploads"));
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
+/* ================================
+   ✅ CLOUDINARY CONFIG
+================================ */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const upload = multer({ storage });
+/* ================================
+   ✅ MULTER CONFIG (MEMORY)
+================================ */
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
 
-/* ADD BLOG PAGE */
+/* ================================
+   ADD BLOG PAGE
+================================ */
 router.get("/add-new", (req, res) => {
   res.render("addBlog", { user: req.user });
 });
 
-/* SINGLE BLOG PAGE */
+/* ================================
+   SINGLE BLOG PAGE
+================================ */
 router.get("/:id", async (req, res) => {
   const blog = await Blog.findById(req.params.id).populate("createdBy");
   const comments = await Comment.find({ blogId: req.params.id })
@@ -36,7 +44,9 @@ router.get("/:id", async (req, res) => {
   });
 });
 
-/* ADD COMMENT */
+/* ================================
+   ADD COMMENT
+================================ */
 router.post("/comment/:blogId", async (req, res) => {
   await Comment.create({
     content: req.body.content,
@@ -47,17 +57,33 @@ router.post("/comment/:blogId", async (req, res) => {
   res.redirect(`/blog/${req.params.blogId}`);
 });
 
-/* ✅ CREATE BLOG (IMAGE FIX HERE) */
+/* ================================
+   ✅ CREATE BLOG (CLOUDINARY)
+================================ */
 router.post("/", upload.single("coverImage"), async (req, res) => {
   const { title, body } = req.body;
+
+  let imageURL = "/images/default.png";
+
+  if (req.file) {
+    const uploadResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        { folder: "blogify" },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      ).end(req.file.buffer);
+    });
+
+    imageURL = uploadResult.secure_url;
+  }
 
   await Blog.create({
     title,
     body,
     createdBy: req.user._id,
-    coverImageURL: req.file
-      ? `/uploads/${req.file.filename}`
-      : "/images/default.png",
+    coverImageURL: imageURL,
   });
 
   res.redirect("/");
