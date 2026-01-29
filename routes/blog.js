@@ -16,7 +16,7 @@ cloudinary.config({
 });
 
 /* ================================
-   ✅ MULTER CONFIG (MEMORY)
+   ✅ MULTER (MEMORY STORAGE)
 ================================ */
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -34,8 +34,9 @@ router.get("/add-new", (req, res) => {
 ================================ */
 router.get("/:id", async (req, res) => {
   const blog = await Blog.findById(req.params.id).populate("createdBy");
-  const comments = await Comment.find({ blogId: req.params.id })
-    .populate("createdBy");
+  const comments = await Comment.find({ blogId: req.params.id }).populate(
+    "createdBy"
+  );
 
   res.render("blog", {
     user: req.user,
@@ -64,19 +65,20 @@ router.post("/", upload.single("coverImage"), async (req, res) => {
   const { title, body } = req.body;
 
   let imageURL = "/images/default.png";
+  let imagePublicId = null;
 
   if (req.file) {
     const uploadResult = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        { folder: "blogify" },
-        (error, result) => {
+      cloudinary.uploader
+        .upload_stream({ folder: "blogify" }, (error, result) => {
           if (error) reject(error);
           else resolve(result);
-        }
-      ).end(req.file.buffer);
+        })
+        .end(req.file.buffer);
     });
 
     imageURL = uploadResult.secure_url;
+    imagePublicId = uploadResult.public_id;
   }
 
   await Blog.create({
@@ -84,7 +86,32 @@ router.post("/", upload.single("coverImage"), async (req, res) => {
     body,
     createdBy: req.user._id,
     coverImageURL: imageURL,
+    coverImagePublicId: imagePublicId, // ✅ IMPORTANT
   });
+
+  res.redirect("/");
+});
+
+/* ================================
+   ✅ DELETE BLOG
+================================ */
+router.post("/delete/:id", async (req, res) => {
+  const blog = await Blog.findById(req.params.id);
+
+  if (!blog) return res.status(404).send("Blog not found");
+
+  // ✅ Only owner can delete
+  if (blog.createdBy.toString() !== req.user._id.toString()) {
+    return res.status(403).send("Unauthorized");
+  }
+
+  // ✅ Delete image from Cloudinary
+  if (blog.coverImagePublicId) {
+    await cloudinary.uploader.destroy(blog.coverImagePublicId);
+  }
+
+  // ✅ Delete blog from DB
+  await Blog.findByIdAndDelete(req.params.id);
 
   res.redirect("/");
 });

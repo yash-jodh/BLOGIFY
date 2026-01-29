@@ -8,6 +8,7 @@ const blogSchema = new Schema(
       type: String,
       default: "/Images/default.png",
     },
+    coverImagePublicId: String,
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
